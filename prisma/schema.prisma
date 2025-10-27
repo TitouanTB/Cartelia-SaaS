@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Restaurant {
+  id             Int             @id @default(autoincrement())
+  name           String
+  logo           String?
+  googlePlaceId  String?
+  createdAt      DateTime        @default(now())
+  users          User[]
+  clients        Client[]
+  avis           Avis[]
+  campaigns      Campaign[]
+  menus          Menu[]
+  reservations   Reservation[]
+  qrCodes        QrCode[]
+  scans          Scan[]
+  featureToggles FeatureToggle[]
+}
+
+model User {
+  id           Int        @id @default(autoincrement())
+  restaurantId Int
+  email        String     @unique
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+}
+
+model Client {
+  id              Int            @id @default(autoincrement())
+  restaurantId    Int
+  name            String
+  email           String?
+  phone           String?
+  whatsappConsent Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  restaurant      Restaurant     @relation(fields: [restaurantId], references: [id])
+  campaignSends   CampaignSend[]
+}
+
+model Avis {
+  id           Int        @id @default(autoincrement())
+  restaurantId Int
+  rating       Int
+  text         String?
+  createdAt    DateTime   @default(now())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+}
+
+model Campaign {
+  id           Int            @id @default(autoincrement())
+  restaurantId Int
+  type         String
+  message      String
+  status       String         @default("draft")
+  createdAt    DateTime       @default(now())
+  restaurant   Restaurant     @relation(fields: [restaurantId], references: [id])
+  sends        CampaignSend[]
+}
+
+model CampaignSend {
+  id         Int      @id @default(autoincrement())
+  campaignId Int
+  clientId   Int
+  channel    String
+  status     String
+  error      String?
+  sentAt     DateTime @default(now())
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  client     Client   @relation(fields: [clientId], references: [id])
+}
+
+model Menu {
+  id           Int        @id @default(autoincrement())
+  restaurantId Int
+  items        Json
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+}
+
+model Reservation {
+  id           Int        @id @default(autoincrement())
+  restaurantId Int
+  name         String
+  date         DateTime
+  guests       Int
+  status       String     @default("pending")
+  createdAt    DateTime   @default(now())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+}
+
+model Scan {
+  id           Int        @id @default(autoincrement())
+  restaurantId Int
+  type         String
+  createdAt    DateTime   @default(now())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+}
+
+model Feedback {
+  id           Int      @id @default(autoincrement())
+  restaurantId Int?
+  feature      String
+  comment      String?
+  createdAt    DateTime @default(now())
+}
+
+model FeatureToggle {
+  id           Int        @id @default(autoincrement())
+  restaurantId Int
+  key          String
+  enabled      Boolean    @default(false)
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+
+  @@unique([restaurantId, key])
+}
+
+model Waitlist {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  phone     String?
+  createdAt DateTime @default(now())
+}
+
+model QrCode {
+  id           Int        @id @default(autoincrement())
+  restaurantId Int
+  type         String
+  targetId     Int?
+  url          String
+  createdAt    DateTime   @default(now())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+}
