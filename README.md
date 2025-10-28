@@ -13,6 +13,25 @@ Cartelia helps restaurants:
 - Accept reservations (feature toggle)
 - Get AI-powered assistance with a mini-Copilot
 
+## 🧱 Monorepo Structure
+
+The repository now contains both the Node.js backend and the new Vite/React frontend.
+
+```
+/
+├── src/                  # Backend source code (Express, Prisma)
+├── prisma/               # Prisma schema and migrations
+├── frontend/             # NEW – Cartelia dashboard & public frontend
+│   ├── src/              # React application source
+│   ├── public/           # Static assets
+│   ├── package.json      # Frontend dependencies & scripts
+│   └── README.md         # Frontend deployment guide
+├── package.json          # Backend dependencies & scripts
+└── README.md             # Backend setup documentation (this file)
+```
+
+See `frontend/README.md` for frontend-specific setup and deployment instructions.
+
 ## 📋 Prerequisites
 
 Before you start, you'll need:
