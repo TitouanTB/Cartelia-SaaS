@@ -1,0 +1,130 @@
+{
+  "info": {
+    "name": "Cartelia Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "Onboarding",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{supabase_jwt}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/onboarding",
+          "host": ["{{base_url}}"],
+          "path": ["onboarding"]
+        }
+      }
+    },
+    {
+      "name": "Create QR",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{supabase_jwt}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"restaurantId\": 1,\n  \"type\": \"menu\",\n  \"targetId\": 1\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/qr/create",
+          "host": ["{{base_url}}"],
+          "path": ["qr", "create"]
+        }
+      }
+    },
+    {
+      "name": "Send Campaign",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{supabase_jwt}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"campaignId\": 1,\n  \"restaurantId\": 1,\n  \"segment\": \"consented\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/campaigns/send",
+          "host": ["{{base_url}}"],
+          "path": ["campaigns", "send"]
+        }
+      }
+    },
+    {
+      "name": "Public Menu",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/menu/1",
+          "host": ["{{base_url}}"],
+          "path": ["menu", "1"]
+        }
+      }
+    },
+    {
+      "name": "Waitlist",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"demo@example.com\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/waitlist",
+          "host": ["{{base_url}}"],
+          "path": ["waitlist"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "supabase_jwt",
+      "value": ""
+    }
+  ]
+}
