@@ -1,6 +1,40 @@
-# Cartelia Backend MVP
+# Cartelia SaaS Monorepo
 
-Complete Node.js/Express backend for Cartelia - the all-in-one SaaS platform for restaurants to manage digital menus, QR codes, customer reviews, and marketing campaigns via email and WhatsApp.
+Complete full-stack application for Cartelia - the all-in-one SaaS platform for restaurants to manage digital menus, QR codes, customer reviews, and marketing campaigns via email and WhatsApp.
+
+This monorepo contains:
+- **Backend** (Node.js/Express/Prisma) at the root
+- **Frontend** (Vite/React) in the `/frontend` directory
+
+## Structure
+- `/` (root) - Backend (Node.js/Express/Prisma)
+- `/frontend` - Frontend (Vite/React)
+
+## Local Development
+
+### Backend
+```bash
+npm install
+npm run dev
+# API runs on http://localhost:3000
+```
+> Run `npm run prisma:generate` after installing dependencies whenever you update the Prisma schema.
+
+### Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+# UI runs on http://localhost:5173
+```
+
+## Deployment
+- Backend: Railway (root directory)
+- Frontend: Vercel (frontend/ directory)
+
+> **Note:** Maintain the backend `package.json` (root) and frontend `frontend/package.json` independently when adding or updating dependencies.
+
+---
 
 ## 🎯 What is Cartelia?
 
@@ -12,25 +46,6 @@ Cartelia helps restaurants:
 - Track analytics and engagement
 - Accept reservations (feature toggle)
 - Get AI-powered assistance with a mini-Copilot
-
-## 🧱 Monorepo Structure
-
-The repository now contains both the Node.js backend and the new Vite/React frontend.
-
-```
-/
-├── src/                  # Backend source code (Express, Prisma)
-├── prisma/               # Prisma schema and migrations
-├── frontend/             # NEW – Cartelia dashboard & public frontend
-│   ├── src/              # React application source
-│   ├── public/           # Static assets
-│   ├── package.json      # Frontend dependencies & scripts
-│   └── README.md         # Frontend deployment guide
-├── package.json          # Backend dependencies & scripts
-└── README.md             # Backend setup documentation (this file)
-```
-
-See `frontend/README.md` for frontend-specific setup and deployment instructions.
 
 ## 📋 Prerequisites
 
