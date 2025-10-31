@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
-import { sendTransactionalEmail } from '../lib/brevo';
+import { sendBulkEmails } from '../lib/email/service';
 import {
   sendWhatsAppMessage,
   randomDelay,
@@ -118,31 +118,49 @@ router.post('/send', authMiddleware, async (req, res) => {
 
     let scheduled = 0;
 
-    for (const client of clients) {
-      if (scheduled >= 50) {
-        break;
+    if (campaign.type === 'email') {
+      const recipients = clients
+        .filter(client => Boolean(client.email))
+        .map(client => ({
+          client,
+          email: client.email!,
+          name: client.name,
+        }));
+
+      if (recipients.length === 0) {
+        return res.json({ scheduled: 0 });
       }
 
-      try {
-        if (campaign.type === 'email' && client.email) {
-          await sendTransactionalEmail({
-            to: [{ email: client.email, name: client.name }],
-            subject: 'Message de votre restaurant',
-            text: campaign.message,
-          });
+      const result = await sendBulkEmails({
+        restaurantId,
+        recipients: recipients.map(({ email, name }) => ({ email, name })),
+        subject: 'Message de votre restaurant',
+        text: campaign.message,
+      });
 
-          await prisma.campaignSend.create({
-            data: {
-              campaignId,
-              clientId: client.id,
-              channel: 'email',
-              status: 'sent',
-            },
-          });
+      for (const recipient of recipients.slice(0, result.queued)) {
+        const failure = result.errors.find(error => error.recipient === recipient.email);
 
-          scheduled++;
-        } else if (campaign.type === 'whatsapp' && client.phone) {
-          if (await isWhatsAppPaired(restaurantId)) {
+        await prisma.campaignSend.create({
+          data: {
+            campaignId,
+            clientId: recipient.client.id,
+            channel: 'email',
+            status: failure ? 'failed' : 'sent',
+            error: failure?.error.message,
+          },
+        });
+      }
+
+      scheduled = result.sent;
+    } else {
+      for (const client of clients) {
+        if (scheduled >= 50) {
+          break;
+        }
+
+        try {
+          if (client.phone && (await isWhatsAppPaired(restaurantId))) {
             await sendWhatsAppMessage(restaurantId, client.phone, campaign.message);
 
             await prisma.campaignSend.create({
@@ -157,17 +175,17 @@ router.post('/send', authMiddleware, async (req, res) => {
             scheduled++;
             await randomDelay();
           }
+        } catch (error: any) {
+          await prisma.campaignSend.create({
+            data: {
+              campaignId,
+              clientId: client.id,
+              channel: campaign.type,
+              status: 'failed',
+              error: error.message,
+            },
+          });
         }
-      } catch (error: any) {
-        await prisma.campaignSend.create({
-          data: {
-            campaignId,
-            clientId: client.id,
-            channel: campaign.type,
-            status: 'failed',
-            error: error.message,
-          },
-        });
       }
     }
 

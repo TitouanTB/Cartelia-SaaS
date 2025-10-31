@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
-import { sendTransactionalEmail } from '../lib/brevo';
+import { sendEmail } from '../lib/email/service';
 import { sendWhatsAppMessage, randomDelay, isWhatsAppPaired } from '../lib/whatsapp';
 import { fetchGoogleReviews } from '../lib/gmb';
 import { env } from '../config';
@@ -74,12 +74,22 @@ router.post('/request', authMiddleware, async (req, res) => {
       }
 
       if (via === 'email' && client.email) {
-        await sendTransactionalEmail({
-          to: [{ email: client.email, name: client.name }],
-          subject: `${restaurant.name} - Donnez-nous votre avis`,
-          text: `Bonjour ${client.name},\n\nNous serions ravis d'avoir votre avis sur notre établissement.\n\nMerci!\n${restaurant.name}`,
-        });
-        queued++;
+        try {
+          await sendEmail({
+            restaurantId,
+            to: [{ email: client.email, name: client.name }],
+            subject: `${restaurant.name} - Donnez-nous votre avis`,
+            template: 'review-request',
+            variables: {
+              client,
+              restaurant,
+              reviewLink: `${env.PUBLIC_BASE_URL}/review/${restaurantId}`,
+            },
+          });
+          queued++;
+        } catch (error) {
+          console.error('Failed to send review request email:', error);
+        }
       } else if (via === 'whatsapp' && client.phone) {
         if (await isWhatsAppPaired(restaurantId)) {
           const message = `Bonjour ${client.name}, nous serions ravis d'avoir votre avis sur notre établissement. ${env.PUBLIC_BASE_URL}/review/${restaurantId}`;

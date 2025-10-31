@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { env } from './config';
 import routes from './routes';
+import './jobs/emailFollowup';
 
 const app = express();
 

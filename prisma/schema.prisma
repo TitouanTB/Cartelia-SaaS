@@ -8,20 +8,35 @@ datasource db {
 }
 
 model Restaurant {
-  id             Int             @id @default(autoincrement())
-  name           String
-  logo           String?
-  googlePlaceId  String?
-  createdAt      DateTime        @default(now())
-  users          User[]
-  clients        Client[]
-  avis           Avis[]
-  campaigns      Campaign[]
-  menus          Menu[]
-  reservations   Reservation[]
-  qrCodes        QrCode[]
-  scans          Scan[]
-  featureToggles FeatureToggle[]
+  id                Int             @id @default(autoincrement())
+  name              String
+  logo              String?
+  googlePlaceId     String?
+  createdAt         DateTime        @default(now())
+  
+  // Email provider configuration
+  emailProvider     String          @default("cartelia_subdomain")
+  emailSender       String?
+  emailSenderName   String?
+  sendgridSubKey    String?         @db.Text
+  sendgridSubId     String?
+  gmailRefreshToken String?         @db.Text
+  gmailEmail        String?
+  emailVerified     Boolean         @default(false)
+  emailQuotaUsed    Int             @default(0)
+  emailQuotaLimit   Int             @default(300)
+  emailQuotaResetAt DateTime        @default(now())
+  
+  users             User[]
+  clients           Client[]
+  avis              Avis[]
+  campaigns         Campaign[]
+  menus             Menu[]
+  reservations      Reservation[]
+  qrCodes           QrCode[]
+  scans             Scan[]
+  featureToggles    FeatureToggle[]
+  emailLogs         EmailLog[]
 }
 
 model User {
@@ -134,4 +149,18 @@ model QrCode {
   url          String
   createdAt    DateTime   @default(now())
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+}
+
+model EmailLog {
+  id           Int        @id @default(autoincrement())
+  restaurantId Int
+  provider     String
+  recipient    String
+  subject      String
+  status       String
+  error        String?
+  sentAt       DateTime   @default(now())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+
+  @@index([restaurantId, sentAt])
 }

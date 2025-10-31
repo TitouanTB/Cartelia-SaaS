@@ -11,6 +11,7 @@ import dashboardRouter from './dashboard';
 import reservationsRouter from './reservations';
 import feedbackRouter from './feedback';
 import waitlistRouter from './waitlist';
+import emailRouter from './email';
 
 const router = Router();
 
@@ -25,6 +26,7 @@ router.use('/dashboard', dashboardRouter);
 router.use('/reservations', reservationsRouter);
 router.use('/feedback', feedbackRouter);
 router.use('/waitlist', waitlistRouter);
+router.use('/email', emailRouter);
 
 // Public routes (no auth required)
 router.use(publicRouter);

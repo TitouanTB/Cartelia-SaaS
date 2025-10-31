@@ -14,7 +14,12 @@ const envSchema = z.object({
   
   DATABASE_URL: z.string(),
   
-  BREVO_API_KEY: z.string().optional(),
+  SENDGRID_API_KEY: z.string().optional(),
+  SENDGRID_VERIFIED_DOMAIN: z.string().default('noreply.cartelia.app'),
+  
+  GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_OAUTH_REDIRECT_URI: z.string().optional(),
   
   HUGGINGFACE_MISTRAL_ENDPOINT: z.string().optional(),
   HUGGINGFACE_API_TOKEN: z.string().optional(),

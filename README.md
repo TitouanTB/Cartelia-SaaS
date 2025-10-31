@@ -39,8 +39,8 @@ Before you start, you'll need:
 1. **Supabase Account** (free tier): [https://supabase.com](https://supabase.com)
 2. **Railway Account** (free tier): [https://railway.app](https://railway.app)
 3. **Node.js** (v18 or higher): [https://nodejs.org](https://nodejs.org)
-4. **Brevo Account** (optional, for emails): [https://brevo.com](https://brevo.com)
-5. **Google Cloud Account** (optional, for review imports): [https://cloud.google.com](https://cloud.google.com)
+4. **SendGrid Account** (for Cartelia shared domain + custom domains): [https://sendgrid.com](https://sendgrid.com)
+5. **Google Cloud Account** (optional, required for Gmail OAuth + Google Reviews import): [https://cloud.google.com](https://cloud.google.com)
 
 ## 🚀 Setup Instructions
 
@@ -101,14 +101,20 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbG...
 # Database (from Step 1)
 DATABASE_URL=postgresql://postgres:yourpassword@db.xxxxx.supabase.co:5432/postgres
 
-# Brevo (optional - see Step 5)
-BREVO_API_KEY=
+# Email Providers (see Step 5)
+SENDGRID_API_KEY=SG.xxxxx                                      # For Cartelia subdomain and custom domain setup
+SENDGRID_VERIFIED_DOMAIN=noreply.cartelia.app                 # Verified domain for Cartelia option
+
+# Google OAuth (for Gmail email option - see Step 6)
+GOOGLE_OAUTH_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
+GOOGLE_OAUTH_CLIENT_SECRET=your-google-oauth-client-secret
+GOOGLE_OAUTH_REDIRECT_URI=https://api.cartelia.app/email/oauth/google/callback
 
 # Hugging Face (optional - for AI copilot)
 HUGGINGFACE_MISTRAL_ENDPOINT=
 HUGGINGFACE_API_TOKEN=
 
-# Google Business Profile (optional - see Step 6)
+# Google Business Profile (optional - for review imports)
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REFRESH_TOKEN=
@@ -183,18 +189,30 @@ curl http://localhost:3000/onboarding
 12. Wait for deployment (2-3 minutes)
 13. Click on the generated URL to test: `https://your-app.railway.app/health`
 
-### Step 5: Setup Brevo (Email) - Optional
+### Step 5: Configure Email Providers
 
-1. Go to [https://app.brevo.com/](https://app.brevo.com/) and create a free account
-2. Go to **SMTP & API** → **API Keys**
-3. Click "Create a new API key"
-4. Copy the key and add it to your `.env`:
+Cartelia now supports three email providers per restaurant. After configuring the environment variables, owners can pick their preferred option directly from **Paramètres → Emails** in the dashboard.
 
-```env
-BREVO_API_KEY=xkeysib-xxxxx
-```
+#### 1. Cartelia (recommandé)
+- Uses the shared domain `noreply.cartelia.app`
+- Requires a SendGrid parent API key (`SENDGRID_API_KEY`) with access to the verified domain (`SENDGRID_VERIFIED_DOMAIN`)
+- No DNS actions required per restaurant — signup is instant
 
-5. Redeploy or restart your Railway service
+#### 2. Mon Gmail (rapide)
+- Perfect for quick onboarding and testing (limit ~500 emails/day per Gmail account)
+- Create a Google Cloud project, enable the Gmail API, and create OAuth credentials
+- Configure the redirect URI to point to your backend: `https://YOUR_API_DOMAIN/email/oauth/google/callback`
+- Add `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, and `GOOGLE_OAUTH_REDIRECT_URI` to `.env`
+- In the dashboard, restaurant owners click **Connecter Gmail** and complete the OAuth flow
+
+#### 3. Mon domaine (professionnel)
+- Creates an isolated SendGrid sub-user + API key per restaurant
+- Provide your parent SendGrid API key (`SENDGRID_API_KEY`) with permission to manage sub-users
+- In the dashboard, enter the restaurant's custom domain (e.g., `monresto.fr`) to receive the DNS records (TXT + CNAME)
+- Add the records at your registrar, wait for propagation, then click **Vérifier**
+- Once validated, emails are sent from `contact@monresto.fr` with enhanced deliverability
+
+> **Migration note:** Existing restaurants default to the Cartelia option with an automatic address `resto_{id}@noreply.cartelia.app`.
 
 ### Step 6: Setup Google Business Profile - Optional
 
@@ -367,6 +385,85 @@ Check if WhatsApp is paired.
 
 #### `GET /campaigns/integrations/whatsapp/qr?restaurantId=1`
 Get WhatsApp pairing QR code.
+
+### Emails
+
+#### `POST /email/setup`
+Configure the sending provider for a restaurant.
+
+**Body:**
+```json
+{
+  "restaurantId": 1,
+  "option": "cartelia_subdomain",
+  "domain": "monresto.fr",
+  "gmailCode": "4/0AfJoh..."
+}
+```
+- `option`: `cartelia_subdomain` | `gmail` | `sendgrid_sub`
+- `domain`: required only for `sendgrid_sub`
+- `gmailCode`: provided by the OAuth callback when connecting a Gmail account
+
+**Response:**
+```json
+{
+  "success": true,
+  "sender": "resto_1@noreply.cartelia.app",
+  "verificationPending": false,
+  "dnsRecords": []
+}
+```
+
+#### `GET /email/status?restaurantId=1`
+Returns the current provider, sender address, verification status, and quota usage for the day.
+
+#### `POST /email/verify-domain`
+Re-check custom domain DNS configuration for SendGrid sub-accounts.
+
+**Body:**
+```json
+{
+  "restaurantId": 1
+}
+```
+
+#### `POST /email/send`
+Internal helper used by other routes to send a single transactional email.
+
+**Body:**
+```json
+{
+  "restaurantId": 1,
+  "to": [{ "email": "client@example.com", "name": "Jean" }],
+  "subject": "Bienvenue !",
+  "template": "welcome",
+  "variables": { "restaurant": { "name": "Le Bistro" } }
+}
+```
+
+#### `POST /email/send-bulk`
+Batch helper for marketing campaigns. Applies per-restaurant quota checks.
+
+**Body:**
+```json
+{
+  "restaurantId": 1,
+  "recipients": [{ "email": "client@example.com", "name": "Jean" }],
+  "subject": "Offre spéciale",
+  "html": "<p>Promo limitée</p>"
+}
+```
+
+#### `GET /email/oauth/google/url`
+Returns the Google OAuth consent URL for Gmail integration.
+
+**Response:**
+```json
+{ "url": "https://accounts.google.com/o/oauth2/v2/auth?..." }
+```
+
+#### `GET /email/oauth/google/callback`
+OAuth callback endpoint. Redirects the browser back to the dashboard with a `gmailCode` query parameter that finalises the setup.
 
 ### Menus
 
