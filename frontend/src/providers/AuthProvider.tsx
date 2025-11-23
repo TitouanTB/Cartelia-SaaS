@@ -35,24 +35,18 @@ const RESTAURANT_STORAGE_KEY = 'cartelia:selected-restaurant';
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [authState, setAuthState] = useState<AuthState | null>(null);
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState<number | null>(() => {
-    const stored = localStorage.getItem(RESTAURANT_STORAGE_KEY);
-    if (!stored) return null;
-    const parsed = Number.parseInt(stored, 10);
-    return Number.isNaN(parsed) ? null : parsed;
-  });
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<number | null>(null);
   const navigate = useNavigate();
 
   const loadAuthState = useCallback(async () => {
     setStatus('loading');
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) {
+    if (!session || !session.user) {
       setAuthState(null);
       setStatus('unauthenticated');
       return;
     }
 
-    // Fetch restaurants from backend or Supabase
     const { data: restaurants = [], error } = await supabase
       .from('restaurants')
       .select('id,name')
@@ -74,11 +68,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('authenticated');
 
     if (state.restaurants.length > 0) {
-      const preferredId = selectedRestaurantId ?? state.restaurants[0]?.id ?? null;
-      setSelectedRestaurantId(preferredId);
-      if (preferredId) {
-        localStorage.setItem(RESTAURANT_STORAGE_KEY, String(preferredId));
+      let preferredId = selectedRestaurantId;
+      if (preferredId === null) {
+        preferredId = state.restaurants[0].id;
       }
+      setSelectedRestaurantId(preferredId);
+      localStorage.setItem(RESTAURANT_STORAGE_KEY, String(preferredId));
     }
   }, [selectedRestaurantId]);
 
@@ -112,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const selectedRestaurant = useMemo(() => {
     if (!authState || !selectedRestaurantId) return null;
-    return authState.restaurants.find((restaurant) => restaurant.id === selectedRestaurantId) ?? null;
+    return authState.restaurants.find((restaurant) => restaurant.id === selectedRestaurantId) || null;
   }, [authState, selectedRestaurantId]);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -141,8 +136,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AuthContextValue>(() => ({
     status,
-    user: authState?.user ?? null,
-    restaurants: authState?.restaurants ?? [],
+    user: authState?.user || null,
+    restaurants: authState?.restaurants || [],
     selectedRestaurant,
     selectedRestaurantId,
     login,
@@ -160,6 +155,5 @@ export function useAuth() {
   if (!context) {
     throw new Error('useAuth must be used inside AuthProvider');
   }
-
   return context;
 }
