@@ -1,4 +1,3 @@
-// frontend/src/providers/AuthProvider.tsx
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
@@ -6,8 +5,15 @@ import { useNavigate } from 'react-router-dom';
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
-interface Restaurant { id: number; name: string; }
-interface AuthState { user: { id: string; email: string } | null; restaurants: Restaurant[]; }
+interface Restaurant {
+  id: number;
+  name: string;
+}
+
+interface AuthState {
+  user: { id: string; email: string } | null;
+  restaurants: Restaurant[];
+}
 
 type AuthContextValue = {
   status: AuthStatus;
@@ -18,92 +24,86 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  setRestaurant: (id: number) => void;
+  refresh: () => Promise<void>;
+  setRestaurant: (restaurantId: number) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-const STORAGE_KEY = 'cartelia:selected-restaurant';
+
+const RESTAURANT_STORAGE_KEY = 'cartelia:selected-restaurant';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [authState, setAuthState] = useState<AuthState | null>(null);
-  const [selectedId, setSelectedId] = useState<number | null>(() => {
-    const s = localStorage.getItem(STORAGE_KEY);
-    return s ? Number(s) : null;
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<number | null>(() => {
+    const stored = localStorage.getItem(RESTAURANT_STORAGE_KEY);
+    if (!stored) return null;
+    const parsed = Number.parseInt(stored, 10);
+    return Number.isNaN(parsed) ? null : parsed;
   });
   const navigate = useNavigate();
 
-  const load = useCallback(async () => {
+  const loadAuthState = useCallback(async () => {
+    setStatus('loading');
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) { setAuthState(null); setStatus('unauthenticated'); return; }
-    const { data: restos = [] } = await supabase.from('restaurants').select('id,name').eq('owner_id', session.user.id);
-    setAuthState({ user: session.user, restaurants: restos || [] });
-    setStatus('authenticated');
-    if (restos.length > 0 && !selectedId) {
-      const id = restos[0].id;
-      setSelectedId(id);
-      localStorage.setItem(STORAGE_KEY, String(id));
+    if (!session?.user) {
+      setAuthState(null);
+      setStatus('unauthenticated');
+      return;
     }
-  }, [selectedId]);
 
-  useEffect(() => { load(); }, [load]);
+    // Fetch restaurants from backend or Supabase
+    const { data: restaurants = [], error } = await supabase
+      .from('restaurants')
+      .select('id,name')
+      .eq('owner_id', session.user.id);
+
+    if (error) {
+      console.error('Error loading restaurants:', error);
+      setAuthState({ user: { id: session.user.id, email: session.user.email! }, restaurants: [] });
+      setStatus('authenticated');
+      return;
+    }
+
+    const state: AuthState = {
+      user: { id: session.user.id, email: session.user.email! },
+      restaurants: restaurants as Restaurant[],
+    };
+
+    setAuthState(state);
+    setStatus('authenticated');
+
+    if (state.restaurants.length > 0) {
+      const preferredId = selectedRestaurantId ?? state.restaurants[0]?.id ?? null;
+      setSelectedRestaurantId(preferredId);
+      if (preferredId) {
+        localStorage.setItem(RESTAURANT_STORAGE_KEY, String(preferredId));
+      }
+    }
+  }, [selectedRestaurantId]);
 
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN') { load(); navigate('/dashboard', { replace: true }); }
-      if (event === 'SIGNED_OUT') { navigate('/login', { replace: true }); }
-    });
-    return () => listener.subscription.unsubscribe();
-  }, [navigate, load]);
+    loadAuthState();
+  }, [loadAuthState]);
 
-  const selectedRestaurant = authState?.restaurants.find(r => r.id === selectedId) || null;
-
-  const login = async (e: string, p: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email: e, password: p });
-    if (error) throw error;
-  };
-
-  const signup = async (e: string, p: string) => {
-    const { error } = await supabase.auth.signUp({
-      email: e,
-      password: p,
-      options: { emailRedirectTo: 'https://cartelia-saas.vercel.app/dashboard' },
-    });
-    if (error) throw error;
-  };
-
-  const logout = () => supabase.auth.signOut();
-
-  const value = useMemo(() => ({
-    status, user: authState?.user ?? null, restaurants: authState?.restaurants ?? [],
-    selectedRestaurant, selectedRestaurantId: selectedId,
-    login, signup, logout,
-    setRestaurant: (id: number) => { setSelectedId(id); localStorage.setItem(STORAGE_KEY, String(id)); },
-  }), [authState, selectedId, status]);
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth outside provider');
-  return ctx;
-};
-      setAuthState(state);
-      setStatus('authenticated');
-      if (state.restaurants.length > 0) {
-        const preferredId = selectedRestaurantId ?? state.restaurants[0]?.id ?? null;
-        setSelectedRestaurantId(preferredId);
-        if (preferredId) {
-          localStorage.setItem(RESTAURANT_STORAGE_KEY, String(preferredId));
-        }
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        await loadAuthState();
+        navigate('/dashboard', { replace: true });
+      } else if (event === 'SIGNED_OUT') {
+        setAuthState(null);
+        setStatus('unauthenticated');
+        setSelectedRestaurantId(null);
+        localStorage.removeItem(RESTAURANT_STORAGE_KEY);
+        navigate('/login', { replace: true });
       }
     });
 
     return () => {
-      subscription.unsubscribe();
+      listener.subscription.unsubscribe();
     };
-  }, [selectedRestaurantId]);
+  }, [navigate, loadAuthState]);
 
   const setRestaurant = useCallback((restaurantId: number) => {
     setSelectedRestaurantId(restaurantId);
@@ -116,21 +116,23 @@ export const useAuth = () => {
   }, [authState, selectedRestaurantId]);
 
   const login = useCallback(async (email: string, password: string) => {
-    await auth.signIn(email, password);
-    await loadAuthState();
-  }, [loadAuthState]);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  }, []);
 
   const signup = useCallback(async (email: string, password: string) => {
-    await auth.signUp(email, password);
-    await loadAuthState();
-  }, [loadAuthState]);
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: 'https://cartelia-saas.vercel.app/dashboard',
+      },
+    });
+    if (error) throw error;
+  }, []);
 
   const logout = useCallback(async () => {
-    await auth.signOut();
-    setAuthState(null);
-    setStatus('unauthenticated');
-    setSelectedRestaurantId(null);
-    localStorage.removeItem(RESTAURANT_STORAGE_KEY);
+    await supabase.auth.signOut();
   }, []);
 
   const refresh = useCallback(async () => {
