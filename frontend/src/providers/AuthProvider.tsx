@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
@@ -39,9 +39,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authState, setAuthState] = useState<AuthState | null>(null);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<number | null>(null);
   const navigate = useNavigate();
+  const initialized = useRef(false);
 
-  const loadAuthState = useCallback(async () => {
-    setStatus('loading');
+  const loadAuthState = useCallback(async (showLoading = false) => {
+    if (showLoading) {
+      setStatus('loading');
+    }
+    
     const { data: { session } } = await supabase.auth.getSession();
     if (!session || !session.user) {
       setAuthState(null);
@@ -80,13 +84,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [selectedRestaurantId]);
 
   useEffect(() => {
-    loadAuthState();
+    if (initialized.current) {
+      return;
+    }
+
+    initialized.current = true;
+    loadAuthState(true);
   }, [loadAuthState]);
 
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        await loadAuthState();
+        await loadAuthState(false);
         navigate('/', { replace: true });
       } else if (event === 'SIGNED_OUT') {
         setAuthState(null);
@@ -135,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refresh = useCallback(async () => {
-    await loadAuthState();
+    await loadAuthState(true);
   }, [loadAuthState]);
 
   const value = useMemo<AuthContextValue>(() => ({
