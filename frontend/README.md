@@ -139,6 +139,7 @@ This creates an optimized production build in `dist/`.
      - `VITE_SUPABASE_URL`
      - `VITE_SUPABASE_ANON_KEY`
      - `VITE_API_BASE_URL` (your production backend URL)
+   - See [`VERCEL_DEPLOYMENT.md`](./VERCEL_DEPLOYMENT.md) for the exact production values currently used in Vercel.
 
 5. Redeploy:
    ```bash
