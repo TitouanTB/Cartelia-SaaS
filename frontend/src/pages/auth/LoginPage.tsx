@@ -7,7 +7,7 @@ import { Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const { login, status } = useAuth();
-  const { success, error: err } = useToast();
+  const { error: err } = useToast();
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
   const [show, setShow] = useState(false);
@@ -19,9 +19,11 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, pass);
-      success('Connexion réussie');
-    } catch (e: any) { err(e.message || 'Erreur'); }
-    setLoading(false);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erreur';
+      err(message);
+      setLoading(false);
+    }
   };
 
   if (status === 'authenticated') return null;

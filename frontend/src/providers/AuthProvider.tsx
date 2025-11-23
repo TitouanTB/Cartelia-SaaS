@@ -8,6 +8,8 @@ export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 interface Restaurant {
   id: number;
   name: string;
+  logo?: string;
+  primaryColor?: string;
 }
 
 interface AuthState {
@@ -85,18 +87,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
         await loadAuthState();
-        navigate('/dashboard', { replace: true });
+        navigate('/', { replace: true });
       } else if (event === 'SIGNED_OUT') {
         setAuthState(null);
         setStatus('unauthenticated');
         setSelectedRestaurantId(null);
         localStorage.removeItem(RESTAURANT_STORAGE_KEY);
         navigate('/login', { replace: true });
+      } else if (event === 'USER_UPDATED' && session) {
+        setAuthState(prev => prev ? { ...prev, user: { id: session.user.id, email: session.user.email! } } : null);
       }
     });
 
     return () => {
-      listener.subscription.unsubscribe();
+      listener?.subscription?.unsubscribe?.();
     };
   }, [navigate, loadAuthState]);
 
