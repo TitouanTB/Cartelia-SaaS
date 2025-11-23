@@ -34,8 +34,20 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const RESTAURANT_STORAGE_KEY = 'cartelia:selected-restaurant';
 
+function hasStoredSession(): boolean {
+  try {
+    const key = `sb-${new URL(import.meta.env.VITE_SUPABASE_URL || 'https://dcstytsxdyxayujmfxmn.supabase.co').hostname.split('.')[0]}-auth-token`;
+    const stored = localStorage.getItem(key);
+    if (!stored) return false;
+    const data = JSON.parse(stored);
+    return !!(data?.access_token && data?.refresh_token);
+  } catch {
+    return false;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [status, setStatus] = useState<AuthStatus>('loading');
+  const [status, setStatus] = useState<AuthStatus>(() => hasStoredSession() ? 'authenticated' : 'loading');
   const [authState, setAuthState] = useState<AuthState | null>(null);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<number | null>(null);
   const navigate = useNavigate();
