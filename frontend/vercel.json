@@ -1,0 +1,7 @@
+{
+  "buildCommand": "npm ci --legacy-peer-deps && npm run build",
+  "devCommand": "vite",
+  "installCommand": "npm ci --legacy-peer-deps",
+  "framework": "vite",
+  "public": "public"
+}
